@@ -1,1 +1,68 @@
+ Param
+    (
+        [Parameter(Mandatory=$True)]
+        [String]$clusterName,
+        [Parameter(Mandatory=$False)]
+        $ltp_LogErrors = "$env:windir\temp\ltspErrors.txt"
+        
+    )
 
+function Get-SQLSERVERCLUSTER{
+[CmdletBinding()]
+param(
+    [string]$Name
+    )
+
+
+Try{
+
+# Load SMO extension and Connect To Server
+Add-Type -Path 'C:\Program Files\Microsoft SQL Server\110\Assemblies\Microsoft.SqlServer.Smo.dll'
+
+$srv = New-Object Microsoft.SqlServer.Management.Smo.Server($clusterName)
+    $Version = $srv.Information.Version
+        if(!$Version)
+        {
+
+            $ConFail = (Get-date).ToString("yyyy-MM-dd HH:mm:ss") + ' Unable to connect to ' + $clusterName;
+            Out-File -FilePath $ltp_LogErrors -InputObject $ConFail
+            Write-Host "0"
+        }
+        Elseif($srv.IsClustered -eq $true){
+                $ownerNode = $srv.ComputerNamePhysicalNetBIOS
+                    if($ownerNode -eq $env:COMPUTERNAME)
+                        {
+                            $serviceStatus = (Get-Service -Name SQLSERVERAGENT).Status
+                                if($serviceStatus -ne "Running")
+                                    {
+                                        Write-Host 1
+                                    }
+                                else{ Write-Host "0"}
+                        }
+                    else{
+                            Write-Host "0"
+                    }
+
+        }
+        Else{
+                Write-Host "0"
+            }
+
+        }
+ Catch{
+        $ErrorMesg = (Get-date).ToString("yyyy-MM-dd HH:mm:ss") + " ErrorState: " + $Error[0] + $Error[0].ScriptStackTrace
+        Out-File -FilePath $ltp_LogErrors -InputObject $ErrorMesg -Append
+
+     }
+    }
+
+try{
+
+    Get-SQLSERVERCLUSTER -Name $clusterName
+
+}
+catch{
+        $ErrorMesg = (Get-date).ToString("yyyy-MM-dd HH:mm:ss") + " ErrorState: " + $Error[0] + $Error[0].ScriptStackTrace
+        Out-File -FilePath $ltp_LogErrors -InputObject $ErrorMesg -Append
+
+     }
